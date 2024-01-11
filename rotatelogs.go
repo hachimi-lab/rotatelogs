@@ -14,8 +14,8 @@ type RotateLogs struct {
 	file          *os.File
 	fileWildcard  string
 	logPath       string
-	logPathFormat string
 	logLinkPath   string
+	logPathFormat string
 	mutex         *sync.Mutex
 	rotateCh      <-chan time.Time
 	closeCh       chan struct{}
@@ -31,26 +31,20 @@ func New(logPath string, opts ...Option) (*RotateLogs, error) {
 	for _, opt := range opts {
 		opt.apply(&ins.options)
 	}
-	ins.fileWildcard = fmt.Sprintf("%s.*", ins.logPath)
 	ins.logLinkPath = ins.logPath
-	if ins.rotateTime/time.Hour == 24 {
-		ins.logPathFormat = "20060102"
-	} else if ins.rotateTime%time.Hour == 0 {
-		ins.logPathFormat = "2006010215"
-	} else {
-		ins.logPathFormat = "200601021504"
-	}
+	ins.logPathFormat = strings.Join([]string{ins.logPath, ins.rotateTime.TimeFormat()}, ".")
+	ins.fileWildcard = fmt.Sprintf("%s.*", ins.logPath)
 
 	if err := os.Mkdir(filepath.Dir(ins.logPath), 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	if err := ins.rotate(time.Now()); err != nil {
+	if err := ins.rotate(time.Now().Local()); err != nil {
 		return nil, err
 	}
 
 	if ins.rotateTime != 0 {
-		go ins.handleEvent()
+		go ins.listen()
 	}
 
 	return ins, nil
@@ -68,7 +62,7 @@ func (slf *RotateLogs) Close() error {
 	return slf.file.Close()
 }
 
-func (slf *RotateLogs) handleEvent() {
+func (slf *RotateLogs) listen() {
 	for {
 		select {
 		case <-slf.closeCh:
@@ -81,11 +75,11 @@ func (slf *RotateLogs) handleEvent() {
 
 func (slf *RotateLogs) rotate(now time.Time) error {
 	if slf.rotateTime != 0 {
-		duration := slf.untilNextTime(now, slf.rotateTime)
+		duration := slf.rotateTime.UntilNextTime(now)
 		slf.rotateCh = time.After(duration)
 	}
 
-	filePath := slf.latestFilePath(now)
+	filePath := now.Format(slf.logPathFormat)
 	slf.mutex.Lock()
 	defer slf.mutex.Unlock()
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -103,13 +97,13 @@ func (slf *RotateLogs) rotate(now time.Time) error {
 	}
 
 	if slf.maxAge > 0 {
-		go slf.deleteExpiredFile(now)
+		go slf.expire(now)
 	}
 
 	return nil
 }
 
-func (slf *RotateLogs) deleteExpiredFile(now time.Time) {
+func (slf *RotateLogs) expire(now time.Time) {
 	cutoffTime := now.Add(-slf.maxAge)
 	matches, err := filepath.Glob(slf.fileWildcard)
 	if err != nil {
@@ -118,14 +112,14 @@ func (slf *RotateLogs) deleteExpiredFile(now time.Time) {
 
 	toUnlink := make([]string, 0, len(matches))
 	for _, path := range matches {
-		fileInfo, err := os.Stat(path)
+		stat, err := os.Stat(path)
 		if err != nil {
 			continue
 		}
-		if slf.maxAge > 0 && fileInfo.ModTime().After(cutoffTime) {
+		if slf.maxAge > 0 && stat.ModTime().After(cutoffTime) {
 			continue
 		}
-		if fileInfo.Name() == filepath.Base(slf.logPath) {
+		if stat.Name() == filepath.Base(slf.logPath) {
 			continue
 		}
 		toUnlink = append(toUnlink, path)
@@ -134,16 +128,4 @@ func (slf *RotateLogs) deleteExpiredFile(now time.Time) {
 	for _, path := range toUnlink {
 		_ = os.Remove(path)
 	}
-}
-
-func (slf *RotateLogs) latestFilePath(t time.Time) string {
-	path := strings.Join([]string{slf.logPath, slf.logPathFormat}, ".")
-	return t.Format(path)
-}
-
-func (slf *RotateLogs) untilNextTime(now time.Time, duration time.Duration) time.Duration {
-	unixNano := now.UnixNano()
-	nanoseconds := duration.Nanoseconds()
-	next := nanoseconds - (unixNano % nanoseconds)
-	return time.Duration(next)
 }

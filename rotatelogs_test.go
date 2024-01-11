@@ -1,16 +1,18 @@
-package rotatelogs
+package rotatelogs_test
 
 import (
+	"github.com/hachimi-lab/rotatelogs"
+
 	"log"
 	"testing"
 	"time"
 )
 
 func TestRotateLog(t *testing.T) {
-	writer, err := New(
+	writer, err := rotatelogs.New(
 		"./logs/app.log",
-		WithMaxAge(time.Minute),
-		WithRotateTime(time.Minute),
+		rotatelogs.WithMaxAge(time.Hour*24*7),
+		rotatelogs.WithRotateTime(rotatelogs.EveryDay),
 	)
 	if err != nil {
 		t.Fatal(err)

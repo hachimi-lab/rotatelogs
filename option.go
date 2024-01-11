@@ -5,46 +5,49 @@ import (
 )
 
 const (
-	DefaultFileRotateTime = time.Hour * 24
+	DefaultFileRotateTime = EveryDay
 	DefaultFileAge        = time.Hour * 24 * 7
 )
-
-type options struct {
-	rotateTime time.Duration
-	maxAge     time.Duration
-}
-
-type Option interface {
-	apply(*options)
-}
-
-type rotateTimeOpt time.Duration
-
-func (opt rotateTimeOpt) apply(opts *options) {
-	opts.rotateTime = time.Duration(opt)
-}
-
-type maxAgeOpt time.Duration
-
-func (opt maxAgeOpt) apply(opts *options) {
-	opts.maxAge = time.Duration(opt)
-}
 
 var defaultOpts = options{
 	rotateTime: DefaultFileRotateTime,
 	maxAge:     DefaultFileAge,
 }
 
-func WithRotateTime(rotateTime time.Duration) Option {
-	if rotateTime < time.Minute {
-		rotateTime = time.Minute
+type (
+	Option interface {
+		apply(*options)
 	}
-	return rotateTimeOpt(rotateTime)
+	options struct {
+		rotateTime RotateTime
+		maxAge     time.Duration
+	}
+	optRotateTime RotateTime
+	optMaxAge     time.Duration
+)
+
+func (opt optRotateTime) apply(opts *options) {
+	opts.rotateTime = RotateTime(opt)
+}
+
+func (opt optMaxAge) apply(opts *options) {
+	opts.maxAge = time.Duration(opt)
+}
+
+func WithRotateTime(rotateTime RotateTime) Option {
+	if rotateTime <= EveryMinute {
+		rotateTime = EveryMinute
+	} else if rotateTime >= EveryDay {
+		rotateTime = EveryDay
+	} else {
+		rotateTime = EveryHour
+	}
+	return optRotateTime(rotateTime)
 }
 
 func WithMaxAge(maxAge time.Duration) Option {
 	if maxAge < time.Minute {
 		maxAge = time.Minute
 	}
-	return maxAgeOpt(maxAge)
+	return optMaxAge(maxAge)
 }
