@@ -32,7 +32,7 @@ func New(logPath string, opts ...Option) (*RotateLogs, error) {
 		opt.apply(&ins.options)
 	}
 	ins.logLinkPath = ins.logPath
-	ins.logPathFormat = strings.Join([]string{ins.logPath, ins.rotateTime.TimeFormat()}, ".")
+	ins.logPathFormat = strings.Join([]string{ins.logPath, ins.rotateType.TimeFormat()}, ".")
 	ins.fileWildcard = fmt.Sprintf("%s.*", ins.logPath)
 
 	if err := os.Mkdir(filepath.Dir(ins.logPath), 0755); err != nil && !os.IsExist(err) {
@@ -43,7 +43,7 @@ func New(logPath string, opts ...Option) (*RotateLogs, error) {
 		return nil, err
 	}
 
-	if ins.rotateTime != 0 {
+	if ins.rotateType.isValid() {
 		go ins.listen()
 	}
 
@@ -74,8 +74,8 @@ func (slf *RotateLogs) listen() {
 }
 
 func (slf *RotateLogs) rotate(now time.Time) error {
-	if slf.rotateTime != 0 {
-		duration := slf.rotateTime.UntilNextTime(now)
+	if slf.rotateType.isValid() {
+		duration := slf.rotateType.UntilNextTime(now)
 		slf.rotateCh = time.After(duration)
 	}
 

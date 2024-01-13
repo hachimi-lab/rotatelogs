@@ -3,16 +3,20 @@ package rotatelogs
 import "time"
 
 type (
-	RotateTime int
+	RotateType string
 )
 
 const (
-	EveryMinute RotateTime = 60
-	EveryHour              = EveryMinute * 60
-	EveryDay               = EveryHour * 24
+	EveryMinute RotateType = "minute"
+	EveryHour   RotateType = "hour"
+	EveryDay    RotateType = "day"
 )
 
-func (slf RotateTime) TimeFormat() string {
+func (slf RotateType) isValid() bool {
+	return slf == EveryMinute || slf == EveryHour || slf == EveryDay
+}
+
+func (slf RotateType) TimeFormat() string {
 	switch slf {
 	case EveryMinute:
 		return "20060102-1504"
@@ -21,28 +25,31 @@ func (slf RotateTime) TimeFormat() string {
 	case EveryDay:
 		return "20060102"
 	default:
-		return ""
+		return "20060102"
 	}
 }
 
-func (slf RotateTime) UntilNextTime(now time.Time) time.Duration {
+func (slf RotateType) UntilNextTime(now time.Time) time.Duration {
 	switch slf {
 	case EveryMinute:
 		year, month, day := now.Date()
 		date := time.Date(year, month, day, now.Hour(), now.Minute(), 0, 0, now.Location())
-		next := date.Add(time.Duration(slf) * time.Second)
+		next := date.Add(time.Minute)
 		return next.Sub(now)
 	case EveryHour:
 		year, month, day := now.Date()
 		date := time.Date(year, month, day, now.Hour(), 0, 0, 0, now.Location())
-		next := date.Add(time.Duration(slf) * time.Second)
+		next := date.Add(time.Hour)
 		return next.Sub(now)
 	case EveryDay:
 		year, month, day := now.Date()
 		date := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
-		next := date.Add(time.Duration(slf) * time.Second)
+		next := date.Add(time.Hour * 24)
 		return next.Sub(now)
 	default:
-		return 0
+		year, month, day := now.Date()
+		date := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
+		next := date.Add(time.Hour * 24)
+		return next.Sub(now)
 	}
 }

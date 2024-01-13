@@ -12,7 +12,7 @@ func TestRotateLog(t *testing.T) {
 	writer, err := rotatelogs.New(
 		"./logs/app.log",
 		rotatelogs.WithMaxAge(time.Hour*24*7),
-		rotatelogs.WithRotateTime(rotatelogs.EveryDay),
+		rotatelogs.WithRotateType(rotatelogs.EveryMinute),
 	)
 	if err != nil {
 		t.Fatal(err)
