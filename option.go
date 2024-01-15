@@ -5,13 +5,13 @@ import (
 )
 
 const (
-	DefaultFileRotateType = EveryDay
-	DefaultFileAge        = time.Hour * 24 * 7
+	DefaultTimePeriod = Daily
+	DefaultMaxAge     = time.Hour * 24 * 7
 )
 
 var defaultOpts = options{
-	rotateType: DefaultFileRotateType,
-	maxAge:     DefaultFileAge,
+	timePeriod: DefaultTimePeriod,
+	maxAge:     DefaultMaxAge,
 }
 
 type (
@@ -19,26 +19,26 @@ type (
 		apply(*options)
 	}
 	options struct {
-		rotateType RotateType
+		timePeriod TimePeriod
 		maxAge     time.Duration
 	}
-	optRotateType RotateType
+	optTimePeriod TimePeriod
 	optMaxAge     time.Duration
 )
 
-func (opt optRotateType) apply(opts *options) {
-	opts.rotateType = RotateType(opt)
+func (opt optTimePeriod) apply(opts *options) {
+	opts.timePeriod = TimePeriod(opt)
 }
 
 func (opt optMaxAge) apply(opts *options) {
 	opts.maxAge = time.Duration(opt)
 }
 
-func WithRotateType(rotateType RotateType) Option {
-	if !rotateType.isValid() {
-		rotateType = DefaultFileRotateType
+func WithTimePeriod(timePeriod TimePeriod) Option {
+	if !timePeriod.isValid() {
+		timePeriod = DefaultTimePeriod
 	}
-	return optRotateType(rotateType)
+	return optTimePeriod(timePeriod)
 }
 
 func WithMaxAge(maxAge time.Duration) Option {

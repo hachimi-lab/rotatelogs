@@ -3,53 +3,61 @@ package rotatelogs
 import "time"
 
 type (
-	RotateType string
+	TimePeriod string
 )
 
 const (
-	EveryMinute RotateType = "minute"
-	EveryHour   RotateType = "hour"
-	EveryDay    RotateType = "day"
+	Minutely TimePeriod = "minutely"
+	Hourly   TimePeriod = "hourly"
+	Daily    TimePeriod = "daily"
+	Monthly  TimePeriod = "monthly"
 )
 
-func (slf RotateType) isValid() bool {
-	return slf == EveryMinute || slf == EveryHour || slf == EveryDay
+func (slf TimePeriod) isValid() bool {
+	return slf == Minutely || slf == Hourly || slf == Daily || slf == Monthly
 }
 
-func (slf RotateType) TimeFormat() string {
+func (slf TimePeriod) TimeFormat() string {
 	switch slf {
-	case EveryMinute:
+	case Minutely:
 		return "20060102-1504"
-	case EveryHour:
+	case Hourly:
 		return "20060102-1500"
-	case EveryDay:
+	case Daily:
 		return "20060102"
+	case Monthly:
+		return "20060101"
 	default:
 		return "20060102"
 	}
 }
 
-func (slf RotateType) UntilNextTime(now time.Time) time.Duration {
+func (slf TimePeriod) UntilNextTime(now time.Time) time.Duration {
 	switch slf {
-	case EveryMinute:
+	case Minutely:
 		year, month, day := now.Date()
 		date := time.Date(year, month, day, now.Hour(), now.Minute(), 0, 0, now.Location())
 		next := date.Add(time.Minute)
 		return next.Sub(now)
-	case EveryHour:
+	case Hourly:
 		year, month, day := now.Date()
 		date := time.Date(year, month, day, now.Hour(), 0, 0, 0, now.Location())
 		next := date.Add(time.Hour)
 		return next.Sub(now)
-	case EveryDay:
+	case Daily:
 		year, month, day := now.Date()
 		date := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
-		next := date.Add(time.Hour * 24)
+		next := date.AddDate(0, 0, 1)
+		return next.Sub(now)
+	case Monthly:
+		year, month, _ := now.Date()
+		date := time.Date(year, month, 1, 0, 0, 0, 0, now.Location())
+		next := date.AddDate(0, 1, 0)
 		return next.Sub(now)
 	default:
 		year, month, day := now.Date()
 		date := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
-		next := date.Add(time.Hour * 24)
+		next := date.AddDate(0, 0, 1)
 		return next.Sub(now)
 	}
 }
