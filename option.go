@@ -15,35 +15,27 @@ var defaultOpts = options{
 }
 
 type (
-	Option interface {
-		apply(*options)
-	}
+	Option  func(opts *options)
 	options struct {
 		timePeriod TimePeriod
 		maxAge     time.Duration
 	}
-	optTimePeriod TimePeriod
-	optMaxAge     time.Duration
 )
-
-func (opt optTimePeriod) apply(opts *options) {
-	opts.timePeriod = TimePeriod(opt)
-}
-
-func (opt optMaxAge) apply(opts *options) {
-	opts.maxAge = time.Duration(opt)
-}
 
 func WithTimePeriod(timePeriod TimePeriod) Option {
 	if !timePeriod.isValid() {
 		timePeriod = DefaultTimePeriod
 	}
-	return optTimePeriod(timePeriod)
+	return func(opts *options) {
+		opts.timePeriod = timePeriod
+	}
 }
 
 func WithMaxAge(maxAge time.Duration) Option {
 	if maxAge < time.Minute {
 		maxAge = time.Minute
 	}
-	return optMaxAge(maxAge)
+	return func(opts *options) {
+		opts.maxAge = maxAge
+	}
 }

@@ -9,14 +9,11 @@ import (
 )
 
 func TestRotateLog(t *testing.T) {
-	writer, err := rotatelogs.New(
+	writer := rotatelogs.New(
 		"./logs/app.log",
 		rotatelogs.WithMaxAge(time.Hour*24*7),
 		rotatelogs.WithTimePeriod(rotatelogs.Daily),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	log.SetOutput(writer)
 

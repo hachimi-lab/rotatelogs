@@ -21,7 +21,7 @@ type RotateLogs struct {
 	closeCh       chan struct{}
 }
 
-func New(logPath string, opts ...Option) (*RotateLogs, error) {
+func New(logPath string, opts ...Option) *RotateLogs {
 	ins := &RotateLogs{
 		logPath: logPath,
 		mutex:   &sync.Mutex{},
@@ -29,30 +29,31 @@ func New(logPath string, opts ...Option) (*RotateLogs, error) {
 	}
 	ins.options = defaultOpts
 	for _, opt := range opts {
-		opt.apply(&ins.options)
+		opt(&ins.options)
 	}
 	ins.logLinkPath = ins.logPath
 	ins.logPathFormat = strings.Join([]string{ins.logPath, ins.timePeriod.TimeFormat()}, ".")
 	ins.fileWildcard = fmt.Sprintf("%s.*", ins.logPath)
 
-	if err := os.Mkdir(filepath.Dir(ins.logPath), 0755); err != nil && !os.IsExist(err) {
-		return nil, err
-	}
-
-	if err := ins.rotate(time.Now().Local()); err != nil {
-		return nil, err
-	}
-
-	if ins.timePeriod.isValid() {
-		go ins.listen()
-	}
-
-	return ins, nil
+	return ins
 }
 
 func (slf *RotateLogs) Write(bytes []byte) (int, error) {
 	slf.mutex.Lock()
 	defer slf.mutex.Unlock()
+
+	if slf.file == nil {
+		if err := os.Mkdir(filepath.Dir(slf.logPath), 0755); err != nil && !os.IsExist(err) {
+			return 0, err
+		}
+		if err := slf.rotate(time.Now().Local(), true); err != nil {
+			return 0, err
+		}
+		if slf.timePeriod.isValid() {
+			go slf.listen()
+		}
+	}
+
 	n, err := slf.file.Write(bytes)
 	return n, err
 }
@@ -73,15 +74,19 @@ func (slf *RotateLogs) listen() {
 	}
 }
 
-func (slf *RotateLogs) rotate(now time.Time) error {
+func (slf *RotateLogs) rotate(now time.Time, first ...bool) error {
 	if slf.timePeriod.isValid() {
 		duration := slf.timePeriod.UntilNextTime(now)
 		slf.rotateCh = time.After(duration)
 	}
 
 	filePath := now.Format(slf.logPathFormat)
-	slf.mutex.Lock()
-	defer slf.mutex.Unlock()
+
+	if len(first) < 0 {
+		slf.mutex.Lock()
+		defer slf.mutex.Unlock()
+	}
+
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
